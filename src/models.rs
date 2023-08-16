@@ -55,7 +55,7 @@ pub trait Queriable {
     fn make_table(conn: &Connection);
     fn new_item(&self, conn: &Connection);
     fn id(&self) -> Box<dyn ToSql>;
-    fn print_table<E: Error>(conn:&Connection) -> Result<(), E>;
+    fn print_table(conn:&Connection);
 }
 
 #[derive(Debug)]
@@ -92,23 +92,22 @@ impl Queriable for Product {
             (),).unwrap();
     }
 
-    fn print_table(conn:&Connection) -> Result<()>  {
-        let mut product_list = conn.prepare("select * from products")?;
+    fn print_table(conn:&Connection) {
+        let mut product_list = conn.prepare("select * from products").unwrap();
         let product_list = product_list.query_map([], |p| {
             Ok (Product::new(
-                p.get(0)?, 
-                p.get(1)?,
+                p.get(0).unwrap(), 
+                p.get(1).unwrap(),
                 p.get::<_, f32>(2).unwrap().to_string(),
                 p.get(3).unwrap(),
-                p.get::<_, f32>(4)?.to_string(),)
+                p.get::<_, f32>(4).unwrap().to_string(),)
             )
-        })?;
+        }).unwrap();
     
         println!("| {:^5} | {:^22} | {:<5} | {:^5} | {:^6} |", "id", "name", "price", "stock", "cost");
         for product in product_list {
             println!("{}", product.unwrap_or_default())
         };
-        Ok(())
     }
 
     fn new_item(&self, conn: &Connection) {
@@ -177,6 +176,9 @@ impl Queriable for Student {
     fn id(&self) -> Box<dyn ToSql> {
         let mut name = self.name.split_whitespace();
         Box::new(name.next().unwrap().to_owned() + name.next().expect("No last name"))
+    }
+    fn print_table(conn:&Connection) {
+        
     }
 }
 
