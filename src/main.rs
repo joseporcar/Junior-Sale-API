@@ -7,6 +7,8 @@ use rusqlite::{params, Connection, Result};
 fn main() -> Result<()>{
     let conn = Connection::open("database.db")?;
 
+    println!("{}", Dollar::from("0.50"));
+
     Product::make_table(&conn);
     Student::make_table(&conn);
     

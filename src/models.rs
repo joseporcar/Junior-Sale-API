@@ -8,6 +8,7 @@ use std::fmt::Display;
 use rusqlite::Connection;
 use rusqlite::ToSql;
 use rusqlite::params;
+use rusqlite::types::FromSql;
 use rusqlite::types::ToSqlOutput;
 
 
@@ -51,10 +52,16 @@ impl ToSql for Dollar {
         Ok(ToSqlOutput::from(format!("{}", self)))
     }
 }
+
+impl FromSql for Dollar {
+    fn column_result(value: rusqlite::types::ValueRef<'_>) -> rusqlite::types::FromSqlResult<Self> {
+        dbg!(Dollar(i32::column_result(value).unwrap()));
+        Ok(Dollar(i32::column_result(value).unwrap()))
+    }
+}
 pub trait Queriable {
     fn make_table(conn: &Connection);
     fn new_item(&self, conn: &Connection);
-    fn id(&self) -> Box<dyn ToSql>;
     fn print_table(conn:&Connection);
 }
 
@@ -79,6 +86,7 @@ impl Product {
         }
     }
 }
+
 impl Queriable for Product {
     fn make_table(conn: &Connection) {
         conn.execute(
@@ -119,9 +127,6 @@ impl Queriable for Product {
         }
     }
 
-    fn id(&self) -> Box<dyn ToSql> {
-        Box::new(self.id)
-    }
 }
 impl Default for Product {
     fn default() -> Self {
@@ -140,14 +145,25 @@ impl Display for Product {
     }
 }
 pub struct Student {
+    id: String,
     name: String,
     credit: Dollar,
 }
+impl Student {
+    fn new(name: String, credit: Dollar) -> Student {
+        let mut split_names = name.split_whitespace();
+        let id = split_names.next().unwrap().to_owned() + split_names.next().expect("No last name");
 
+        Student { id, name, credit }
+    }
+    fn id(&self) -> String {
+        let mut name = self.name.split_whitespace();
+        name.next().unwrap().to_owned() + name.next().expect("No last name")
+    }
+}
 impl Display for Student {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut name = self.name.split_whitespace();
-        let id = name.next().unwrap().to_owned() + name.next().expect("No last name");
+        let id = self.id();
         writeln!(f, "| {:12} | {:22} | {:6} |", 
             id,
             self.name,
@@ -168,17 +184,18 @@ impl Queriable for Student {
     fn new_item(&self, conn: &Connection) {
         match conn.execute(
         "INSERT INTO products (id, name, credit) VALUES ($1, $2, $3)", 
-            params![self.name, self.id(), self.credit]) {
+            params![self.id, self.name, self.credit]) {
                 Ok(a) => println!("{a}"),
                 Err(a) => println!("{a}asf"),
         }
     }
-    fn id(&self) -> Box<dyn ToSql> {
-        let mut name = self.name.split_whitespace();
-        Box::new(name.next().unwrap().to_owned() + name.next().expect("No last name"))
-    }
     fn print_table(conn:&Connection) {
-        
+        let mut table = conn.prepare("select * from students").unwrap();
+        let table = table.query_map([], |row| {
+                Ok(
+                    Student::new(row.get(1).unwrap(), row.get(2).unwrap())
+                )
+            });
+        println!();
     }
 }
-
