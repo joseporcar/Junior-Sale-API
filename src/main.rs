@@ -1,5 +1,6 @@
 mod models;
-use models::{Student, Product, Dollar, Queriable};
+use models::{student::Student, Queriable, product::Product, dollar::Dollar};
+
 
 use std::io::stdin;
 use rusqlite::{params, Connection, Result};
@@ -24,8 +25,8 @@ fn main() -> Result<()>{
                 if buffer == "exit" || buffer == "quit" {
                     break
                 } else if buffer == "drop-all" {
-                        conn.execute("drop table products", [])?;
-                        break
+                    conn.execute("drop table products", [])?;
+                    break
                 }
                 else {
                     one_input(&conn, &buffer)?;
