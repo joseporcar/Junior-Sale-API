@@ -1,61 +1,66 @@
 use std::fmt::{self, Display};
 
-use rusqlite::{Connection, params};
+use rusqlite::{params, Connection};
 
-use super::{Queriable, dollar::Dollar};
+use super::{dollar::Dollar, Queriable};
 
 pub struct Student {
-    id: String,
     name: String,
     credit: Dollar,
 }
 impl Student {
-    fn new(name: String, credit: Dollar) -> Student {
-        let mut split_names = name.split_whitespace();
-        let id = split_names.next().unwrap().to_owned() + split_names.next().expect("No last name");
-
-        Student { id, name, credit }
+    pub fn new(name: String) -> Student {
+        Student { name, credit: Dollar::from(0) }
     }
-    fn id(&self) -> String {
-        let mut name = self.name.split_whitespace();
-        name.next().unwrap().to_owned() + name.next().expect("No last name")
+    fn new_credit(name: String, credit: Dollar) -> Student {
+        Student { name, credit }
+    }
+    pub fn name(&self) -> &str {
+        &self.name
     }
 }
+
 impl Display for Student {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let id = self.id();
-        writeln!(f, "| {:12} | {:22} | {:6} |", 
-            id,
-            self.name,
-            self.credit
-        )
+        writeln!(f, "| {:22} | {:<6} |", self.name, self.credit.to_string())
+    }
+}
+
+impl Default for Student {
+    fn default() -> Self {
+        Student::new_credit("BAD".to_string(), Dollar(-999))
     }
 }
 impl Queriable for Student {
     fn make_table(conn: &Connection) {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS students (
-                id TEXT NOT NULL PRIMARY KEY,
                 name TEXT NOT NULL,
-                credit REAL NOT NULL
+                credit INTEGER NOT NULL
             )",
-            (),).unwrap();
+            (),
+        )
+        .unwrap();
     }
     fn new_item(&self, conn: &Connection) {
         match conn.execute(
-        "INSERT INTO products (id, name, credit) VALUES ($1, $2, $3)", 
-            params![self.id, self.name, self.credit]) {
-                Ok(a) => println!("{a}"),
-                Err(a) => println!("{a}asf"),
+            "INSERT INTO students (name, credit) VALUES ($1, $2)",
+            params![self.name, self.credit],
+        ) {
+            Ok(a) => println!("{a}"),
+            Err(a) => println!("{a}asf"),
         }
     }
-    fn print_table(conn:&Connection) {
+    fn print_table(conn: &Connection) {
         let mut table = conn.prepare("select * from students").unwrap();
-        let table = table.query_map([], |row| {
-                Ok(
-                    Student::new(row.get(1).unwrap(), row.get(2).unwrap())
-                )
-            });
-        println!();
+        let mut table = table.query_map([], |row| {
+            Ok(
+                Student::new_credit(row.get(0).expect("error at getting string"), 
+                    row.get(1).expect("error at getting dollar")))
+        }).unwrap();
+        println!("| {:^22} | {:^6} |", "name", "credit");
+        while let Some(student) = table.next() {
+            println!("{}", student.unwrap_or_default())
+        }
     }
 }

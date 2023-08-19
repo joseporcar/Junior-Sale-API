@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 rand = "0.8.5"
 rusqlite = "0.29.0"
+chrono = "0.4.26"
+egui = "0.22.0"
